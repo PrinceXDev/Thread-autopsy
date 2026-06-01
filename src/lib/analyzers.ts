@@ -18,7 +18,12 @@ import {
 } from "./types";
 import { matchClaims } from "./claimMatcher";
 
-const tokenizer = new natural.WordTokenizer();
+let tokenizer: natural.WordTokenizer;
+try {
+  tokenizer = new natural.WordTokenizer();
+} catch {
+  tokenizer = { tokenize: (text: string) => text.toLowerCase().split(/\s+/) } as unknown as natural.WordTokenizer;
+}
 
 // ─── FILLER / WEASEL WORD LISTS ────────────────────────────────────────────────
 
@@ -150,7 +155,12 @@ function tokenize(text: string): string[] {
 }
 
 function buildTfIdf(docs: string[][]): Map<string, number>[] {
-  const tfidf = new natural.TfIdf();
+  let tfidf: natural.TfIdf;
+  try {
+    tfidf = new natural.TfIdf();
+  } catch {
+    return docs.map(() => new Map());
+  }
   docs.forEach((doc) => tfidf.addDocument(doc.join(" ")));
 
   const vocab = new Set<string>();
