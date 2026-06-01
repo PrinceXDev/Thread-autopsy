@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { sampleThread } from "@/lib/sampleThread";
 import type { Tweet } from "@/lib/types";
-import type { CheerioAPI } from "cheerio";
 
 type RapidTweetLike = Record<string, unknown>;
 
@@ -76,33 +75,71 @@ async function fetchFromRapidAPI(tweetId: string): Promise<Tweet[] | null> {
   }
 }
 
-async function fetchFromNitter(
+async function fetchFromFxTwitter(
   username: string,
   tweetId: string,
 ): Promise<Tweet[] | null> {
   try {
     const response = await fetch(
-      `https://nitter.net/${username}/status/${tweetId}`,
+      `https://api.fxtwitter.com/${username}/status/${tweetId}`,
       {
-        headers: { "User-Agent": "Mozilla/5.0" },
+        headers: { "User-Agent": "ThreadAutopsy/1.0" },
         cache: "no-store",
       },
     );
     if (!response.ok) return null;
 
-    const html = await response.text();
-    const cheerio = await import("cheerio");
-    const $: CheerioAPI = cheerio.load(html);
+    const data = await response.json();
+    const tweet = data?.tweet;
+    if (!tweet?.text) return null;
 
     const tweets: Tweet[] = [];
-    $(".timeline-item .tweet-content").each((idx, el) => {
-      const text = $(el).text().trim();
-      if (text) {
-        tweets.push({ id: `nitter-${idx}`, text, position: idx + 1 });
+
+    // Add the main tweet
+    tweets.push({ id: String(tweet.id || tweetId), text: tweet.text, position: 1 });
+
+    // FxTwitter provides thread continuation via tweet.thread
+    const thread = tweet.thread;
+    if (Array.isArray(thread)) {
+      for (const t of thread) {
+        const text = t?.text;
+        if (text) {
+          tweets.push({
+            id: String(t.id || `fx-${tweets.length}`),
+            text,
+            position: tweets.length + 1,
+          });
+        }
       }
-    });
+    }
 
     return tweets.length > 0 ? tweets.slice(0, 30) : null;
+  } catch {
+    return null;
+  }
+}
+
+// Fallback: fetch single tweet via Twitter oEmbed (no auth required)
+async function fetchFromOEmbed(
+  username: string,
+  tweetId: string,
+): Promise<Tweet[] | null> {
+  try {
+    const oembed = `https://publish.twitter.com/oembed?url=https://twitter.com/${username}/status/${tweetId}&omit_script=true`;
+    const response = await fetch(oembed, {
+      headers: { "User-Agent": "ThreadAutopsy/1.0" },
+      cache: "no-store",
+    });
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    // oEmbed returns HTML — extract plain text from it
+    const html: string = data?.html || "";
+    // Strip HTML tags to get plain text
+    const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    if (!text) return null;
+
+    return [{ id: tweetId, text, position: 1 }];
   } catch {
     return null;
   }
@@ -137,9 +174,14 @@ export async function POST(request: Request) {
     // Strategy 1: RapidAPI (configurable host/path)
     let tweets = await fetchFromRapidAPI(tweetId);
 
-    // Strategy 2: Nitter fallback (public threads only)
+    // Strategy 2: FxTwitter (free, no auth)
     if (!tweets) {
-      tweets = await fetchFromNitter(username, tweetId);
+      tweets = await fetchFromFxTwitter(username, tweetId);
+    }
+
+    // Strategy 3: Twitter oEmbed (single tweet fallback, no auth)
+    if (!tweets) {
+      tweets = await fetchFromOEmbed(username, tweetId);
     }
 
     if (tweets) {
@@ -150,7 +192,7 @@ export async function POST(request: Request) {
       });
     }
 
-    // Strategy 3: Demo fallback (always works)
+    // Strategy 4: Demo fallback (always works)
     return NextResponse.json({
       ...sampleThread,
       _fallback: true,
