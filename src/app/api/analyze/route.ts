@@ -19,9 +19,11 @@ export async function POST(request: Request) {
 
     const result = runFullAnalysis(body);
     return NextResponse.json(result);
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[analyze] error:", msg);
     return NextResponse.json(
-      { error: "Analysis failed. Please try again." },
+      { error: "Analysis failed. Please try again.", _debug: msg },
       { status: 500 },
     );
   }

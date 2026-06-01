@@ -76,7 +76,10 @@ export default function Home() {
     }
 
     const analyzeRes = await analyzePromise;
-    if (!analyzeRes.ok) throw new Error("Analysis failed. Please try again.");
+    if (!analyzeRes.ok) {
+      const body = await analyzeRes.json().catch(() => ({})) as { _debug?: string };
+      throw new Error(body._debug ? `Analysis failed: ${body._debug}` : "Analysis failed. Please try again.");
+    }
 
     const results: AnalysisResult = await analyzeRes.json();
     sessionStorage.setItem("analysisResults", JSON.stringify(results));
