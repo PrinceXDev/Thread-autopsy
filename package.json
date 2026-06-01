@@ -20,7 +20,7 @@
     "recharts": "^3.8.1"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": "20.x"
   },
   "devDependencies": {
     "@types/natural": "^5.1.5",
