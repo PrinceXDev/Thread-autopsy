@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Thread Autopsy 🔬
 
-## Getting Started
+Analyze Twitter/X threads to measure real information density vs filler, repetition, unverified claims, and structural slop patterns — **no external AI APIs**, pure algorithmic analysis.
 
-First, run the development server:
+## Quick start
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000). Use **Try with sample thread** to demo without an API key.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Copy `.env.local.example` to `.env.local` and add your RapidAPI key for live thread fetching:
 
-## Learn More
+```
+RAPIDAPI_KEY=your_key_here
+```
 
-To learn more about Next.js, take a look at the following resources:
+Fetch priority: RapidAPI → Nitter (cheerio) → built-in sample thread.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+If your RapidAPI scraper host isn’t `twitter-api45`, you can override:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+RAPIDAPI_HOST=your-host.p.rapidapi.com
+RAPIDAPI_REPLIES_PATH=/path?tweet_id={tweetId}&count=30
+```
 
-## Deploy on Vercel
+## Stack
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Next.js 14 (App Router), TypeScript, Tailwind CSS
+- `natural` (TF-IDF), `compromise` (NLP), `cheerio` (scrape fallback)
+- Recharts (similarity heatmap), Framer Motion, html2canvas (share image)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## API
+
+| Route               | Method | Body                                           |
+| ------------------- | ------ | ---------------------------------------------- |
+| `/api/fetch-thread` | POST   | `{ "url": "https://x.com/..." }` or `"sample"` |
+| `/api/analyze`      | POST   | `{ tweets, author, title }`                    |
+
+## Deploy
+
+Ready for [Vercel](https://vercel.com). Set `RAPIDAPI_KEY` in project environment variables.
